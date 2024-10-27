@@ -5,6 +5,7 @@ import SettingsView from "./pages/SettingsView.vue"
 import LoginView from "./pages/LoginView.vue"
 import VideosView from "./pages/VideosView.vue"
 import VideoView from "./pages/VideoView.vue"
+import TrackingView from "./pages/TrackingView.vue"
 
 const routes = [
     {path: '/', name: 'home', component: HomeView},
@@ -12,6 +13,11 @@ const routes = [
     {path: '/login', name: 'login', component: LoginView},
     {path: '/videos', name: 'videos', component: VideosView},
     {path: '/videos/:id', name: 'video', component: VideoView},
+    {
+        path: '/videos/:id/tracking',
+        name: 'tracking',
+        component: TrackingView,
+      },
 ]
 
 const router = createRouter({

@@ -9,8 +9,8 @@
               <span class="label-text">Username</span>
             </label>
             <input 
-              type="text" 
               v-model="username" 
+              type="text" 
               placeholder="Username" 
               class="input input-bordered" 
               required
@@ -21,8 +21,8 @@
               <span class="label-text">Password</span>
             </label>
             <input 
-              type="password" 
               v-model="password" 
+              type="password" 
               placeholder="Password" 
               class="input input-bordered" 
               required

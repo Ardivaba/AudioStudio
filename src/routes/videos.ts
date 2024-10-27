@@ -69,7 +69,8 @@ router.post('/', upload.single('video'), async (req: MulterRequest, res: Respons
             originalName: req.file.originalname,
             mimeType: req.file.mimetype,
             size: req.file.size,
-            description: req.body.description || null
+            description: req.body.description || null,
+            trackingData: { objects: [] }
         })
 
         await video.save()
@@ -79,6 +80,24 @@ router.post('/', upload.single('video'), async (req: MulterRequest, res: Respons
             await fs.unlink(req.file.path).catch(console.error)
         }
         res.status(500).json({ error: 'Failed to upload video' })
+    }
+})
+
+router.put('/:id', async (req: Request, res: Response) => {
+    try {
+        const video = await Video.findOne({ where: { id: Number(req.params.id) } })
+        if (!video) {
+            return res.status(404).json({ error: 'Video not found' })
+        }
+
+        if (req.body.trackingData) {
+            video.trackingData = req.body.trackingData
+        }
+
+        await video.save()
+        res.json(video)
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update video' })
     }
 })
 
@@ -119,7 +138,7 @@ router.post('/:id/generate-depth', async (req: Request, res: Response) => {
         const finalDepthFilename = `depth-${Date.now()}.mp4`
         const tempDepthPath = path.join('./uploads/videos', tempDepthFilename)
         const finalDepthPath = path.join('./uploads/videos', finalDepthFilename)
-        
+
         await fs.writeFile(tempDepthPath, Buffer.from(response.data.depth_video, 'base64'))
 
         await new Promise((resolve, reject) => {
@@ -162,12 +181,12 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
         const filePath = path.join('./uploads/videos', video.filename)
         await fs.unlink(filePath)
-        
+
         if (video.depthFilename) {
             const depthPath = path.join('./uploads/videos', video.depthFilename)
             await fs.unlink(depthPath).catch(console.error)
         }
-        
+
         await video.remove()
 
         res.status(200).json({ message: 'Video deleted successfully' })

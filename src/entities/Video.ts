@@ -1,3 +1,4 @@
+// src/entities/Video.ts
 import { Entity, PrimaryGeneratedColumn, Column, BaseEntity, CreateDateColumn, UpdateDateColumn } from "typeorm";
 
 @Entity()
@@ -28,6 +29,22 @@ export class Video extends BaseEntity {
 
     @Column({ type: "boolean", default: false })
     depthGenerationFailed: boolean;
+
+    @Column({ type: "json", nullable: true })
+    trackingData: {
+        objects: {
+            id: string;
+            name: string;
+            type: string;
+            color: string;
+            tracking: {
+                frameNumber: number;
+                x: number;
+                y: number;
+                z?: number;
+            }[];
+        }[];
+    };
 
     @CreateDateColumn()
     created_at: Date;

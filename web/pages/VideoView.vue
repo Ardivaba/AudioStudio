@@ -73,6 +73,13 @@
           >
             Generating...
           </button>
+          <button 
+            v-if="video?.depthFilename"
+            class="btn btn-secondary"
+            @click="startTracking"
+          >
+            Track Objects
+          </button>
           <button class="btn btn-error" @click="deleteVideo">Delete</button>
         </div>
       </div>
@@ -133,6 +140,10 @@ const generateDepth = async () => {
     isGenerating.value = false
     alert('Error generating depth video: ' + error.response?.data?.error || error.message)
   }
+}
+
+const startTracking = () => {
+  router.push(`/videos/${video.value.id}/tracking`)
 }
 
 const formatDate = (dateString) => {
