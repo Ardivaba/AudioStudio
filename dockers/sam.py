@@ -1,15 +1,14 @@
 import gc
 import os
-import re
 import time
-import base64
 import numpy as np
 import torch
 from typing import List, Dict, Optional, Tuple
 from pydantic import BaseModel
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sam2.build_sam import build_sam2_video_predictor
+import cv2
 
 time.sleep(10)
 
@@ -22,6 +21,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+if not os.path.exists('frames'):
+    os.makedirs('frames')
+
 class Point(BaseModel):
     x: int
     y: int
@@ -32,14 +34,14 @@ class DetectionRequest(BaseModel):
     frame_number: int = 0
 
 class TrackingRequest(BaseModel):
+    points: List[Point]
     initial_frame: int
     target_frames: List[int]
 
 predictor = build_sam2_video_predictor("sam2_hiera_l.yaml", "./checkpoints/sam2_hiera_large.pt")
 
 def extract_frames(video_path: str, max_frames: int = 300) -> Tuple[str, List[str]]:
-    unique_id = str(int(time.time()))
-    frames_dir = f'frames_{unique_id}'
+    frames_dir = os.path.join('frames', f'frames_{int(time.time())}')
     os.makedirs(frames_dir, exist_ok=True)
 
     cap = cv2.VideoCapture(video_path)
@@ -62,26 +64,35 @@ def extract_frames(video_path: str, max_frames: int = 300) -> Tuple[str, List[st
 
 @app.post("/upload")
 async def upload_video(video: UploadFile = File(...)):
-    temp_path = f"temp_{video.filename}"
-    with open(temp_path, "wb") as f:
-        content = await video.read()
-        f.write(content)
+    try:
+        temp_path = f"temp_{video.filename}"
+        with open(temp_path, "wb") as f:
+            content = await video.read()
+            f.write(content)
 
-    frames_dir, frame_files = extract_frames(temp_path)
-    os.remove(temp_path)
+        frames_dir, frame_files = extract_frames(temp_path)
+        os.remove(temp_path)
 
-    inference_state = predictor.init_state(video_path=frames_dir)
+        video_id = os.path.basename(frames_dir).replace('frames_', '')
+        
+        inference_state = predictor.init_state(video_path=frames_dir)
+        
+        print(f"Successfully processed video. ID: {video_id}, Frames: {len(frame_files)}")
 
-    return {
-        "video_id": os.path.basename(frames_dir),
-        "total_frames": len(frame_files)
-    }
+        return {
+            "video_id": video_id,
+            "total_frames": len(frame_files),
+            "message": "Upload successful"
+        }
+    except Exception as e:
+        print(f"Error processing video: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/detect/{video_id}")
+@app.post("/detect/frames/{video_id}")
 async def detect_object(video_id: str, request: DetectionRequest):
-    frames_dir = f'frames_{video_id}'
+    frames_dir = os.path.join('frames', f'frames_{video_id}')
     if not os.path.exists(frames_dir):
-        raise HTTPException(status_code=404, detail="Video not found")
+        raise HTTPException(status_code=404, detail=f"Video frames not found for ID: {video_id}")
 
     points = np.array([[p.x, p.y] for p in request.points], dtype=np.float32)
     labels = np.array([1 if p.include else 0 for p in request.points], dtype=np.int32)
@@ -97,33 +108,40 @@ async def detect_object(video_id: str, request: DetectionRequest):
     )
 
     mask = (mask_logits[0] > 0.0).cpu().numpy()
-
     coords = np.where(mask)
+    
     if len(coords[0]) > 0:
         center_y = int(np.mean(coords[0]))
         center_x = int(np.mean(coords[1]))
     else:
         center_x, center_y = 0, 0
 
-    binary_mask = mask.astype(np.uint8) * 255
-    _, buffer = cv2.imencode('.png', binary_mask)
-    mask_b64 = base64.b64encode(buffer).decode('utf-8')
-
     return {
-        "mask": mask_b64,
         "center": {"x": center_x, "y": center_y},
         "object_id": int(obj_ids[0])
     }
 
-@app.post("/track/{video_id}")
+@app.post("/track/frames/{video_id}")
 async def track_object(video_id: str, request: TrackingRequest):
-    frames_dir = f'frames_{video_id}'
+    frames_dir = os.path.join('frames', f'frames_{video_id}')
     if not os.path.exists(frames_dir):
-        raise HTTPException(status_code=404, detail="Video not found")
+        raise HTTPException(status_code=404, detail=f"Video frames not found for ID: {video_id}")
 
     inference_state = predictor.init_state(video_path=frames_dir)
-    tracking_results = {}
+    
+    # First set the points
+    points = np.array([[p.x, p.y] for p in request.points], dtype=np.float32)
+    labels = np.array([1 if p.include else 0 for p in request.points], dtype=np.int32)
+    
+    predictor.add_new_points(
+        inference_state=inference_state,
+        frame_idx=request.initial_frame,
+        obj_id=1,
+        points=points,
+        labels=labels
+    )
 
+    tracking_results = {}
     for frame_idx, obj_ids, mask_logits in predictor.propagate_in_video(inference_state):
         if frame_idx in request.target_frames:
             mask = (mask_logits[0] > 0.0).cpu().numpy()
@@ -146,4 +164,4 @@ async def track_object(video_id: str, request: TrackingRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=7861)
+    uvicorn.run(app, host="0.0.0.0", port=7860)
