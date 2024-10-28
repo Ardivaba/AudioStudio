@@ -60,7 +60,7 @@ def extract_frames(video_path: str, max_frames: int = 300) -> Tuple[str, List[st
         frame_number += 1
 
     cap.release()
-    return frames_dir, frame_files
+    return frames_dir, frame_files, fps
 
 @app.post("/upload")
 async def upload_video(video: UploadFile = File(...)):
@@ -70,18 +70,17 @@ async def upload_video(video: UploadFile = File(...)):
             content = await video.read()
             f.write(content)
 
-        frames_dir, frame_files = extract_frames(temp_path)
+        frames_dir, frame_files, fps = extract_frames(temp_path)
         os.remove(temp_path)
 
         video_id = os.path.basename(frames_dir).replace('frames_', '')
-        
+
         inference_state = predictor.init_state(video_path=frames_dir)
-        
-        print(f"Successfully processed video. ID: {video_id}, Frames: {len(frame_files)}")
 
         return {
             "video_id": video_id,
             "total_frames": len(frame_files),
+            "fps": fps,
             "message": "Upload successful"
         }
     except Exception as e:
@@ -94,10 +93,13 @@ async def detect_object(video_id: str, request: DetectionRequest):
     if not os.path.exists(frames_dir):
         raise HTTPException(status_code=404, detail=f"Video frames not found for ID: {video_id}")
 
+    inference_state = predictor.init_state(video_path=frames_dir)
+
     points = np.array([[p.x, p.y] for p in request.points], dtype=np.float32)
     labels = np.array([1 if p.include else 0 for p in request.points], dtype=np.int32)
 
-    inference_state = predictor.init_state(video_path=frames_dir)
+    print(f"Input points: {points}")
+    print(f"Labels: {labels}")
 
     _, obj_ids, mask_logits = predictor.add_new_points(
         inference_state=inference_state,
@@ -108,13 +110,18 @@ async def detect_object(video_id: str, request: DetectionRequest):
     )
 
     mask = (mask_logits[0] > 0.0).cpu().numpy()
-    coords = np.where(mask)
-    
-    if len(coords[0]) > 0:
-        center_y = int(np.mean(coords[0]))
-        center_x = int(np.mean(coords[1]))
+    if len(mask.shape) == 3:
+        mask = mask[0]
+
+    rows, cols = np.where(mask)
+    print(f"Points found: {len(rows)}")
+
+    if len(rows) > 0:
+        center_y = int(np.mean(rows))
+        center_x = int(np.mean(cols))
     else:
-        center_x, center_y = 0, 0
+        center_x = points[0][0]
+        center_y = points[0][1]
 
     return {
         "center": {"x": center_x, "y": center_y},
@@ -128,11 +135,13 @@ async def track_object(video_id: str, request: TrackingRequest):
         raise HTTPException(status_code=404, detail=f"Video frames not found for ID: {video_id}")
 
     inference_state = predictor.init_state(video_path=frames_dir)
-    
-    # First set the points
+
     points = np.array([[p.x, p.y] for p in request.points], dtype=np.float32)
     labels = np.array([1 if p.include else 0 for p in request.points], dtype=np.int32)
-    
+
+    print(f"Initial points: {points}")
+    print(f"Labels: {labels}")
+
     predictor.add_new_points(
         inference_state=inference_state,
         frame_idx=request.initial_frame,
@@ -145,12 +154,24 @@ async def track_object(video_id: str, request: TrackingRequest):
     for frame_idx, obj_ids, mask_logits in predictor.propagate_in_video(inference_state):
         if frame_idx in request.target_frames:
             mask = (mask_logits[0] > 0.0).cpu().numpy()
-            coords = np.where(mask)
-            if len(coords[0]) > 0:
-                center_y = int(np.mean(coords[0]))
-                center_x = int(np.mean(coords[1]))
+            if len(mask.shape) == 3:
+                mask = mask[0]
+
+            rows, cols = np.where(mask)
+            print(f"Frame {frame_idx} - Points found: {len(rows)}")
+
+            if len(rows) > 0:
+                center_y = int(np.mean(rows))
+                center_x = int(np.mean(cols))
             else:
-                center_x, center_y = 0, 0
+                if frame_idx > 0 and frame_idx - 1 in tracking_results:
+                    center_x = tracking_results[frame_idx - 1]["center"]["x"]
+                    center_y = tracking_results[frame_idx - 1]["center"]["y"]
+                else:
+                    center_x = points[0][0]
+                    center_y = points[0][1]
+
+            print(f"Frame {frame_idx} - Center: x={center_x}, y={center_y}")
 
             tracking_results[frame_idx] = {
                 "center": {"x": center_x, "y": center_y},
