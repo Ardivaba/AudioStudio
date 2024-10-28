@@ -48,6 +48,32 @@ export class Video extends BaseEntity {
         }[];
     };
 
+    @Column({ type: "json", nullable: true })
+    calibrationPoints: {
+        x: number;
+        y: number;
+        depth: number;
+        distance: number;
+    }[];
+
+    @Column({ type: "json", nullable: true })
+    compiledTracking: {
+        objects: {
+            id: string;
+            name: string;
+            color: string;
+            tracking: {
+                frameNumber: number;
+                x: number;
+                y: number;
+                z: number;
+                worldX: number;
+                worldY: number;
+                worldZ: number;
+            }[];
+        }[];
+    };
+
     @CreateDateColumn()
     created_at: Date;
 

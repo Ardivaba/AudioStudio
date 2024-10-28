@@ -1,3 +1,4 @@
+// src/routes/videos.ts
 import { Router, Request, Response } from 'express'
 import { Video } from '../entities/Video'
 import { upload, MulterRequest } from '../middleware/uploadMiddleware'
@@ -70,7 +71,9 @@ router.post('/', upload.single('video'), async (req: MulterRequest, res: Respons
             mimeType: req.file.mimetype,
             size: req.file.size,
             description: req.body.description || null,
-            trackingData: { objects: [] }
+            trackingData: { objects: [] },
+            calibrationPoints: [],
+            compiledTracking: null
         })
 
         await video.save()
@@ -92,6 +95,14 @@ router.put('/:id', async (req: Request, res: Response) => {
 
         if (req.body.trackingData) {
             video.trackingData = req.body.trackingData
+        }
+
+        if (req.body.calibrationPoints) {
+            video.calibrationPoints = req.body.calibrationPoints
+        }
+
+        if (req.body.compiledTracking) {
+            video.compiledTracking = req.body.compiledTracking
         }
 
         await video.save()
