@@ -155,6 +155,7 @@ const videoStore = useVideosStore()
 const videoId = computed(() => route.params.id)
 const video = computed(() => videoStore.currentVideo)
 const videoUrl = computed(() => `${baseURL}/uploads/videos/${video.value?.filename}`)
+const fps = computed(() => videoStore.fps)
 
 const videoRef = ref(null)
 const canvasRef = ref(null)
@@ -234,10 +235,18 @@ watch(() => trackingMode.value, async (newMode) => {
   }
 })
 
+watch(playbackSpeed, (newSpeed) => {
+  if (videoRef.value) {
+    videoRef.value.playbackRate = newSpeed
+  }
+})
+
 const startRenderLoop = () => {
   const animate = () => {
     if (videoRef.value) {
-      currentFrame.value = Math.round(videoRef.value.currentTime * 30)
+      const video = videoRef.value
+      const progress = video.currentTime / video.duration
+      currentFrame.value = Math.round(progress * totalFrames.value)
       drawObjects()
     }
     animationFrameId = requestAnimationFrame(animate)
@@ -254,7 +263,9 @@ const handleVideoLoaded = () => {
   const video = videoRef.value
   video.playbackRate = playbackSpeed.value
   videoDuration.value = video.duration
-  totalFrames.value = Math.floor(video.duration * 30)
+  
+  // Ensure total frames matches actual video duration
+  totalFrames.value = Math.floor(video.duration * fps.value)
 
   const canvas = canvasRef.value
   canvas.width = video.videoWidth
@@ -271,14 +282,16 @@ const handleVideoLoaded = () => {
 
 const handleTimeUpdate = () => {
   if (videoRef.value) {
-    currentFrame.value = Math.round(videoRef.value.currentTime * 30)
+    const video = videoRef.value
+    currentFrame.value = Math.floor(video.currentTime * fps.value)
   }
 }
 
 const handleSeeking = () => {
   const video = videoRef.value
   video.playbackRate = playbackSpeed.value
-  currentFrame.value = Math.round(video.currentTime * 30)
+  const progress = video.currentTime / video.duration
+  currentFrame.value = Math.round(progress * totalFrames.value)
   drawObjects()
 }
 
@@ -529,7 +542,18 @@ const startAutoTracking = async () => {
   }
 
   try {
-    const frameIndices = Array.from({ length: totalFrames.value }, (_, i) => i)
+    const video = videoRef.value
+    const actualFrames = Math.floor(video.duration * fps.value)
+    
+    // Create frame indices that map to actual video time
+    const frameIndices = []
+    for (let i = 0; i < actualFrames; i++) {
+      const frameTime = i / fps.value
+      if (frameTime <= video.duration) {
+        frameIndices.push(i)
+      }
+    }
+
     const result = await trackingService.trackObject(
       activeVideoId.value,
       autoTrackingPoints.value,
@@ -537,11 +561,21 @@ const startAutoTracking = async () => {
       frameIndices
     )
 
-    selectedObject.value.tracking = Object.entries(result).map(([frame, data]) => ({
-      frameNumber: parseInt(frame),
-      x: data.center.x,
-      y: data.center.y
-    })).sort((a, b) => a.frameNumber - b.frameNumber)
+    // Map tracking results to actual video frames
+    const videoFrameCount = Math.floor(video.duration * fps.value)
+    const resultFrameCount = Object.keys(result).length
+    const scaleFactor = videoFrameCount / resultFrameCount
+
+    selectedObject.value.tracking = Object.entries(result).map(([frame, data], index) => {
+      // Scale frame numbers to match video duration
+	  console.log(frame);
+      const adjustedFrame = Math.round(index * scaleFactor)
+      return {
+        frameNumber: adjustedFrame,
+        x: data.center.x,
+        y: data.center.y
+      }
+    }).sort((a, b) => a.frameNumber - b.frameNumber)
 
     await saveTrackingData()
     autoTrackingPoints.value = []
@@ -582,7 +616,7 @@ const togglePlayPause = () => {
 
 const handleTimelineChange = () => {
   const video = videoRef.value
-  video.currentTime = currentFrame.value / 30
+  video.currentTime = currentFrame.value / fps.value
   video.playbackRate = playbackSpeed.value
 }
 
@@ -620,10 +654,4 @@ const deleteObject = async (id) => {
     await saveTrackingData()
   }
 }
-
-watch(playbackSpeed, (newSpeed) => {
-  if (videoRef.value) {
-    videoRef.value.playbackRate = newSpeed
-  }
-})
 </script>

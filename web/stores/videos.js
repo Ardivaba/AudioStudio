@@ -8,6 +8,7 @@ export const useVideosStore = defineStore('videos', {
     currentPage: 1,
     totalPages: 1,
     totalVideos: 0,
+    fps: 30,
     filters: {
       search: '',
       sortColumn: 'created_at',
@@ -56,6 +57,11 @@ export const useVideosStore = defineStore('videos', {
             'Content-Type': 'multipart/form-data'
           }
         })
+        
+        if (response.data.fps) {
+          this.fps = response.data.fps
+        }
+        
         return response.data
       } catch (error) {
         console.error('Error uploading video:', error)
