@@ -8,12 +8,7 @@
       <div class="grid grid-cols-1 gap-6">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div class="aspect-w-16 aspect-h-9 bg-base-300 rounded-lg overflow-hidden">
-            <video
-              v-if="video"
-              :src="`${baseURL}/uploads/videos/${video.filename}`"
-              controls
-              class="w-full h-full object-contain"
-            ></video>
+            <video v-if="video" :src="`${baseURL}/uploads/videos/${video.filename}`" controls class="w-full h-full object-contain"></video>
           </div>
 
           <div v-if="video?.depthFilename || isGenerating || video?.depthGenerationFailed" class="aspect-w-16 aspect-h-9 bg-base-300 rounded-lg overflow-hidden">
@@ -29,12 +24,7 @@
                 <button class="btn btn-error" @click="generateDepth">Try Again</button>
               </div>
             </div>
-            <video
-              v-else-if="video?.depthFilename"
-              :src="`${baseURL}/uploads/videos/${video.depthFilename}`"
-              controls
-              class="w-full h-full object-contain"
-            ></video>
+            <video v-else-if="video?.depthFilename" :src="`${baseURL}/uploads/videos/${video.depthFilename}`" controls class="w-full h-full object-contain"></video>
           </div>
         </div>
 
@@ -59,26 +49,17 @@
         </div>
 
         <div class="flex gap-2">
-          <button 
-            v-if="!video?.depthFilename && !isGenerating && !video?.depthGenerationFailed"
-            class="btn btn-primary"
-            @click="generateDepth"
-          >
+          <button v-if="!video?.depthFilename && !isGenerating && !video?.depthGenerationFailed" class="btn btn-primary" @click="generateDepth">
             Generate Depth Video
           </button>
-          <button 
-            v-if="isGenerating"
-            class="btn btn-primary" 
-            disabled
-          >
+          <button v-if="isGenerating" class="btn btn-primary" disabled>
             Generating...
           </button>
-          <button 
-            v-if="video?.depthFilename"
-            class="btn btn-secondary"
-            @click="startTracking"
-          >
+          <button v-if="video?.depthFilename" class="btn btn-secondary" @click="startTracking">
             Track Objects
+          </button>
+          <button v-if="video?.compiledTracking" class="btn btn-accent" @click="startStudio">
+            Studio
           </button>
           <button class="btn btn-error" @click="deleteVideo">Delete</button>
         </div>
@@ -144,6 +125,10 @@ const generateDepth = async () => {
 
 const startTracking = () => {
   router.push(`/videos/${video.value.id}/tracking`)
+}
+
+const startStudio = () => {
+  router.push(`/videos/${video.value.id}/studio`)
 }
 
 const formatDate = (dateString) => {
