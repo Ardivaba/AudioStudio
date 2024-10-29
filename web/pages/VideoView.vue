@@ -52,6 +52,9 @@
           <button v-if="!video?.depthFilename && !isGenerating && !video?.depthGenerationFailed" class="btn btn-primary" @click="generateDepth">
             Generate Depth Video
           </button>
+          <button v-if="video?.depthFilename && !isGenerating" class="btn btn-warning" @click="generateDepth">
+            Regenerate Depth Video
+          </button>
           <button v-if="isGenerating" class="btn btn-primary" disabled>
             Generating...
           </button>

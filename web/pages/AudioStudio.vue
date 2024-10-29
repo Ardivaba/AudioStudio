@@ -9,7 +9,8 @@
 			<div class="lg:col-span-3 bg-base-200 p-4 rounded-lg">
 				<div ref="canvasContainer" class="w-full h-[80vh] bg-black rounded-lg overflow-hidden relative">
 					<canvas ref="canvas" />
-					<div v-if="!isControlsActive"
+					<div
+v-if="!isControlsActive"
 						class="absolute bottom-4 left-4 text-white text-sm bg-black bg-opacity-50 p-2 rounded">
 						Click to activate controls<br>
 						WASD - Move<br>
@@ -38,7 +39,8 @@
 					</div>
 
 					<div class="w-full">
-						<input :value="currentFrame" type="range" min="0" :max="totalFrames" class="range" step="1"
+						<input
+:value="currentFrame" type="range" min="0" :max="totalFrames" class="range" step="1"
 							@input="handleTimelineChange">
 						<div class="flex justify-between text-xs mt-1">
 							<span>0:00</span>
@@ -65,14 +67,16 @@
 						<h2 class="text-xl font-bold">Objects</h2>
 					</div>
 					<div class="space-y-4 max-h-[calc(100vh-20rem)] overflow-y-auto">
-						<div v-for="obj in trackedObjects" :key="obj.id"
+						<div
+v-for="obj in trackedObjects" :key="obj.id"
 							class="flex items-center justify-between p-2 rounded bg-base-100">
 							<div class="flex items-center gap-2">
 								<div class="w-4 h-4 rounded-full" :style="{ backgroundColor: obj.color }"></div>
 								<span>{{ obj.name }}</span>
 							</div>
 							<div class="flex gap-2">
-								<button class="btn btn-sm btn-ghost"
+								<button
+class="btn btn-sm btn-ghost"
 									:class="{ 'btn-active': selectedObject?.id === obj.id }" @click="selectObject(obj)">
 									Select
 								</button>
