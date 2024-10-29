@@ -138,7 +138,7 @@ router.post('/:id/generate-depth', async (req: Request, res: Response) => {
                 num_denoising_steps: 4,
                 guidance_scale: 1.2,
                 max_res: 512,
-                process_length: 220
+                process_length: 240
             },
             maxContentLength: Infinity,
             maxBodyLength: Infinity,

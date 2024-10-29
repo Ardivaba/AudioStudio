@@ -48,25 +48,38 @@
 				</div>
 			</div>
 
-			<div class="bg-base-200 p-4 rounded-lg">
-				<div class="flex justify-between items-center mb-4">
-					<h2 class="text-xl font-bold">Objects</h2>
+			<div class="space-y-4">
+				<div class="bg-base-200 p-4 rounded-lg h-1/4">
+					<div class="flex justify-between items-center mb-4">
+						<h2 class="text-xl font-bold">Controls</h2>
+					</div>
+					<div class="space-y-2">
+						<button class="btn btn-primary w-full" @click="resetCamera">
+							Reset Camera
+						</button>
+					</div>
 				</div>
-				<div class="space-y-4 max-h-[calc(100vh-20rem)] overflow-y-auto">
-					<div v-for="obj in trackedObjects" :key="obj.id"
-						class="flex items-center justify-between p-2 rounded bg-base-100">
-						<div class="flex items-center gap-2">
-							<div class="w-4 h-4 rounded-full" :style="{ backgroundColor: obj.color }"></div>
-							<span>{{ obj.name }}</span>
-						</div>
-						<div class="flex gap-2">
-							<button class="btn btn-sm btn-ghost"
-								:class="{ 'btn-active': selectedObject?.id === obj.id }" @click="selectObject(obj)">
-								Select
-							</button>
-							<button class="btn btn-sm btn-error" @click="deleteObject(obj.id)">
-								Delete
-							</button>
+
+				<div class="bg-base-200 p-4 rounded-lg h-3/4">
+					<div class="flex justify-between items-center mb-4">
+						<h2 class="text-xl font-bold">Objects</h2>
+					</div>
+					<div class="space-y-4 max-h-[calc(100vh-20rem)] overflow-y-auto">
+						<div v-for="obj in trackedObjects" :key="obj.id"
+							class="flex items-center justify-between p-2 rounded bg-base-100">
+							<div class="flex items-center gap-2">
+								<div class="w-4 h-4 rounded-full" :style="{ backgroundColor: obj.color }"></div>
+								<span>{{ obj.name }}</span>
+							</div>
+							<div class="flex gap-2">
+								<button class="btn btn-sm btn-ghost"
+									:class="{ 'btn-active': selectedObject?.id === obj.id }" @click="selectObject(obj)">
+									Select
+								</button>
+								<button class="btn btn-sm btn-error" @click="deleteObject(obj.id)">
+									Delete
+								</button>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -125,13 +138,17 @@ const velocity = new THREE.Vector3()
 const direction = new THREE.Vector3()
 const moveSpeed = 5.0
 
+const defaultCameraPosition = new THREE.Vector3(0, 2, 5)
+const defaultCameraLookAt = new THREE.Vector3(0, 0, 0)
+
 const initThreeJS = () => {
   scene.background = new THREE.Color(0x000000)
 
   const container = canvasContainer.value
   const aspect = container.clientWidth / container.clientHeight
   camera.value = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000)
-  camera.value.position.set(0, 2, 5)
+  camera.value.position.copy(defaultCameraPosition)
+  camera.value.lookAt(defaultCameraLookAt)
 
   renderer.value = new THREE.WebGLRenderer({
     canvas: canvas.value,
@@ -196,7 +213,6 @@ const createObjects = () => {
     const light = new THREE.PointLight(obj.color, 1, 1)
     sphere.add(light)
 
-    // Create text label
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
     canvas.width = 256
@@ -209,13 +225,21 @@ const createObjects = () => {
     const texture = new THREE.CanvasTexture(canvas)
     const labelMaterial = new THREE.SpriteMaterial({ map: texture })
     const label = new THREE.Sprite(labelMaterial)
-    label.scale.set(2, 1, 1)
+    label.scale.set(2 * 0.25, 1 * 0.25, 1 * 0.25)
     label.position.y = 0.5
     sphere.add(label)
     
     scene.add(sphere)
     objects.value[obj.id] = { sphere, light, label }
   })
+}
+
+const resetCamera = () => {
+  controls.value.unlock()
+  isControlsActive.value = false
+
+  camera.value.position.copy(defaultCameraPosition)
+  camera.value.lookAt(defaultCameraLookAt)
 }
 
 const updateObjects = (frame) => {
@@ -231,7 +255,6 @@ const updateObjects = (frame) => {
     const { sphere } = object
     sphere.position.set(position.worldX, position.worldY, position.worldZ)
 
-    // Keep the label facing the camera
     if (object.label) {
       object.label.quaternion.copy(camera.value.quaternion)
     }
@@ -322,30 +345,23 @@ const moveCamera = (delta) => {
   camera.value.position.copy(currentPosition)
 }
 
-const focusOnObject = (obj) => {
-  if (!obj || !objects.value[obj.id]) return
-  
-  const { sphere } = objects.value[obj.id]
-  const targetPos = sphere.position.clone()
-  
-  controls.value.unlock()
-  isControlsActive.value = false
-
-  const distance = 1
-  camera.value.position.set(
-    targetPos.x,
-    targetPos.y,
-    targetPos.z + distance
-  )
-  camera.value.lookAt(targetPos)
-}
-
 const selectObject = (obj) => {
   if (selectedObject.value?.id === obj.id) {
     selectedObject.value = null
   } else {
     selectedObject.value = obj
-    focusOnObject(obj)
+    if (objects.value[obj.id]) {
+      const { sphere } = objects.value[obj.id]
+      controls.value.unlock()
+      isControlsActive.value = false
+      
+      camera.value.position.set(
+        sphere.position.x,
+        sphere.position.y + 2,
+        sphere.position.z + 5
+      )
+      camera.value.lookAt(sphere.position)
+    }
   }
 }
 
@@ -473,8 +489,8 @@ watch(playbackSpeed, () => {
 </script>
 
 <style scoped>
-	canvas {
-		width: 100% !important;
-		height: 100% !important;
-	}
+canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
 </style>

@@ -31,54 +31,15 @@
   </div>
 </template>
 
-<script setup>
-import { computed, onMounted, ref } from 'vue';
-import { useSettingsStore } from '../stores/settings';
-import { useThemeStore } from '../stores/theme';
+<script setup lang="ts">
+import { useSettingsView } from './SettingsView';
 
-const settingsStore = useSettingsStore();
-const themeStore = useThemeStore();
-
-// const settings = computed(() => settingsStore.settings);
-const isLoaded = ref(false);
-const selectedTheme = ref('');
-
-const themes = [
-  { name: 'light', label: 'Hele' },
-  { name: 'dark', label: 'Tume' },
-  { name: 'cupcake', label: 'Cupcake' },
-  { name: 'bumblebee', label: 'Bumblebee' },
-  { name: 'emerald', label: 'Emerald' },
-  { name: 'corporate', label: 'Corporate' },
-  { name: 'synthwave', label: 'Synthwave' },
-  { name: 'retro', label: 'Retro' },
-  { name: 'cyberpunk', label: 'Cyberpunk' },
-  { name: 'valentine', label: 'Valentine' },
-];
-
-const validationError = computed(() => {
-  return null;
-});
-
-onMounted(async () => {
-  await settingsStore.getSettings();
-  selectedTheme.value = themeStore.currentTheme;
-  isLoaded.value = true;
-});
-
-const saveSettings = async () => {
-  if (validationError.value) {
-    return;
-  }
-  try {
-    await settingsStore.updateSettings();
-    alert('Seaded edukalt salvestatud!');
-  } catch (error) {
-    alert('Viga seadete salvestamisel: ' + error.message);
-  }
-};
-
-const changeTheme = () => {
-  themeStore.setTheme(selectedTheme.value);
-};
+const {
+  isLoaded,
+  selectedTheme,
+  themes,
+  validationError,
+  saveSettings,
+  changeTheme,
+} = useSettingsView();
 </script>
