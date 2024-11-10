@@ -7,6 +7,6 @@ Flow is:
 - You then place sounds in Three.JS, attach them to tracked objects or w/e and compile a sound file you can then use in your video editing software
 - Meaning that you could use ElevenAI to generate 2D sounds and make them 3D effortlessly, eg: "Slow bullet whizzing past the camera"
 
-You have to patch SAM 2 and DepthCrafter docker instances (app.py) manually with files in ./dockers
+You have to patch SAM 2 and DepthCrafter docker instances (app.py) manually with files in ./dockers, the default "Spaces" in Huggingface, use the "Get docker command" button or w/e.
 
 License is: Do whatever the fuck you want with the code, as I'm not convinced that it's a good idea anymore.
